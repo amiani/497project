@@ -11,11 +11,11 @@ act <- function(params, ob) { #forward pass
   return(which.max(out)-1)
 }
 
-makePopulation <- function(meanVec, sdev, popSize) {
-  N <- length(meanVec)
+makePopulation <- function(parent, sdev, popSize) {
+  N <- length(parent)
   noise <- matrix(rnorm(N*popSize/2), N, popSize/2)
   noise <- cbind(noise, -noise) #mirrored sampling
-  population <- meanVec + sdev * noise
+  population <- parent + sdev * noise
   return(list(population, noise))
 }
 
@@ -101,16 +101,22 @@ evaluateAgent <- function(agent, client, instance_id) {
   return(reward)
 }
 
+evaluatePopulation <- function(population, client, instance_id) {
+  fitnesses <- lapply(population, evaluateAgent, client=client, instance_id=instance_id)
+  return(fitnesses)
+}
+
 envData <- setupGym("CartPole-v1", TRUE)
+hiddenDim <- 64
 layerWidths <- list(
   unlist(envData[[3]]),
-  64,
-  64,
+  hiddenDim,
+  hiddenDim,
   envData[[4]])
 parent <- initParams(layerWidths)
-parentAgent <- vecToLayers(parent, layerWidths)
-fitness <- evaluateAgent(parentAgent, envData[[1]], envData[[2]])
-print(fitness)
+popData <- makePopulation(parent, 1, 10)
+popAgents <- apply(popData[[1]], 2, vecToLayers, layerWidths)
+fitness <- evaluatePopulation(popAgents, envData[[1]], envData[[2]])
 
 # Dump result info to disk
 #env_monitor_close(client, instance_id)
