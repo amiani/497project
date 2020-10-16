@@ -104,16 +104,23 @@ evaluateAgent <- function(agent, client, instance_id) {
 }
 
 evaluatePopulation <- function(population, client, instance_id) {
-  fitnesses <- lapply(population, evaluateAgent, client, instance_id)
-  return(fitnesses)
+  fitness <- lapply(population, evaluateAgent, client, instance_id)
+  return(unlist(fitness))
+}
+
+shapeFitness <- function(fitness) {
+  halfPopSize <- length(fitness)/2
+  ord <- order(fitness)
+  rankedFitness <- -halfPopSize:halfPopSize * .5 / halfPopSize  #evenly spaced fitnesses from -0.5 to 0.5
+  return(rankedFitness[order(ord)])
 }
 
 envData <- setupGym("CartPole-v1", FALSE)
 client <- envData[[1]]
 instance_id <- envData[[2]]
-hiddenDim <- 64
+hiddenDim <- 16
 sdev <- 0.5
-alpha <- 0.05
+alpha <- 0.1
 layerWidths <- list(
   unlist(envData[[3]]),
   hiddenDim,
@@ -123,10 +130,11 @@ parent <- initParams(layerWidths)
 
 parentFitness <- 0
 while(parentFitness < 195) {
-  popData <- makePopulation(parent, sdev, 10)
+  popData <- makePopulation(parent, sdev, 100)
   popAgents <- apply(popData[[1]], 2, vecToLayers, layerWidths)
   fitness <- evaluatePopulation(popAgents, client, instance_id)
-  parent <- updateParent(parent, sdev, unlist(fitness), popData[[2]], alpha)
+  fitness <- shapeFitness(fitness)
+  parent <- updateParent(parent, sdev, fitness, popData[[2]], alpha)
   parentFitness <- evaluateAgent(vecToLayers(parent, layerWidths), client, instance_id)
   print(parentFitness)
 }
