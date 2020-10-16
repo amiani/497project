@@ -31,8 +31,10 @@ initParams <- function(layerWidths) {
 }
 
 updateParent <- function(parent, sdev, fitness, noise, alpha) {
-  print(fitness)
-  parent <- parent + alpha * apply(fitness * noise, 1, mean) / sdev
+  #print(parent)
+  #print(mean(t(fitness*t(noise))[1,]))
+  noiseFitness <- t(t(noise)*fitness)
+  parent <- parent + alpha * apply(noiseFitness, 1, mean) / sdev
   return(parent)
 }
 
@@ -110,8 +112,8 @@ envData <- setupGym("CartPole-v1", FALSE)
 client <- envData[[1]]
 instance_id <- envData[[2]]
 hiddenDim <- 64
-sdev <- 1
-alpha <- 0.01
+sdev <- 0.5
+alpha <- 0.05
 layerWidths <- list(
   unlist(envData[[3]]),
   hiddenDim,
@@ -120,12 +122,12 @@ layerWidths <- list(
 parent <- initParams(layerWidths)
 
 parentFitness <- 0
-while(parentFitness < 150) {
+while(parentFitness < 195) {
   popData <- makePopulation(parent, sdev, 10)
   popAgents <- apply(popData[[1]], 2, vecToLayers, layerWidths)
   fitness <- evaluatePopulation(popAgents, client, instance_id)
   parent <- updateParent(parent, sdev, unlist(fitness), popData[[2]], alpha)
-  parentFitness <- evaluateAgent(parent, client, instance_id)
+  parentFitness <- evaluateAgent(vecToLayers(parent, layerWidths), client, instance_id)
   print(parentFitness)
 }
 
