@@ -30,8 +30,9 @@ initParams <- function(layerWidths) {
   return(parent)
 }
 
-updateParent <- function(parent, sdev, fitnesses, noise, alpha) {
-  parent <- parent + alpha * apply(fitnesses * noise, 1, mean) / sdev
+updateParent <- function(parent, sdev, fitness, noise, alpha) {
+  print(fitness)
+  parent <- parent + alpha * apply(fitness * noise, 1, mean) / sdev
   return(parent)
 }
 
@@ -66,7 +67,6 @@ setupGym <- function(env_id, isMonitor) {
   # Set up agent
   action_space_info <- env_action_space_info(client, instance_id)
   observation_space_info <- env_observation_space_info(client, instance_id)
-  print(action_space_info)
 
   layerWidths <- list(
     action_space_info[["n"]],
@@ -92,7 +92,7 @@ evaluateAgent <- function(agent, client, instance_id) {
     ob <- env_reset(client, instance_id)
     for (i in 1:max_steps) {
       action <- act(agent, ob)
-      results <- env_step(client, instance_id, action, render = TRUE)
+      results <- env_step(client, instance_id, action, render = FALSE)
       reward <- reward + results[["reward"]]
       ob <- results[["observation"]]
       if (results[["done"]]) break
@@ -102,21 +102,32 @@ evaluateAgent <- function(agent, client, instance_id) {
 }
 
 evaluatePopulation <- function(population, client, instance_id) {
-  fitnesses <- lapply(population, evaluateAgent, client=client, instance_id=instance_id)
+  fitnesses <- lapply(population, evaluateAgent, client, instance_id)
   return(fitnesses)
 }
 
-envData <- setupGym("CartPole-v1", TRUE)
+envData <- setupGym("CartPole-v1", FALSE)
+client <- envData[[1]]
+instance_id <- envData[[2]]
 hiddenDim <- 64
+sdev <- 1
+alpha <- 0.01
 layerWidths <- list(
   unlist(envData[[3]]),
   hiddenDim,
   hiddenDim,
   envData[[4]])
 parent <- initParams(layerWidths)
-popData <- makePopulation(parent, 1, 10)
-popAgents <- apply(popData[[1]], 2, vecToLayers, layerWidths)
-fitness <- evaluatePopulation(popAgents, envData[[1]], envData[[2]])
+
+parentFitness <- 0
+while(parentFitness < 150) {
+  popData <- makePopulation(parent, sdev, 10)
+  popAgents <- apply(popData[[1]], 2, vecToLayers, layerWidths)
+  fitness <- evaluatePopulation(popAgents, client, instance_id)
+  parent <- updateParent(parent, sdev, unlist(fitness), popData[[2]], alpha)
+  parentFitness <- evaluateAgent(parent, client, instance_id)
+  print(parentFitness)
+}
 
 # Dump result info to disk
-#env_monitor_close(client, instance_id)
+env_monitor_close(client, instance_id)
