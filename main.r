@@ -119,8 +119,8 @@ envData <- setupGym("CartPole-v1", FALSE)
 client <- envData[[1]]
 instance_id <- envData[[2]]
 hiddenDim <- 16
-sdev <- 0.5
-alpha <- 0.1
+sdev <- 1
+alpha <- 0.05
 layerWidths <- list(
   unlist(envData[[3]]),
   hiddenDim,
@@ -130,14 +130,21 @@ parent <- initParams(layerWidths)
 
 parentFitness <- 0
 while(parentFitness < 195) {
-  popData <- makePopulation(parent, sdev, 100)
+  popData <- makePopulation(parent, sdev, 40)
   popAgents <- apply(popData[[1]], 2, vecToLayers, layerWidths)
   fitness <- evaluatePopulation(popAgents, client, instance_id)
-  fitness <- shapeFitness(fitness)
+  #fitness <- shapeFitness(fitness)
   parent <- updateParent(parent, sdev, fitness, popData[[2]], alpha)
   parentFitness <- evaluateAgent(vecToLayers(parent, layerWidths), client, instance_id)
   print(parentFitness)
 }
+
+returns <- list()
+for (i in 1:10) {
+  returns[[i]] <- evaluateAgent(vecToLayers(parent, layerWidths), client, instance_id)
+}
+print("Average return over 10 runs:")
+print(mean(unlist(returns)))
 
 # Dump result info to disk
 env_monitor_close(client, instance_id)
